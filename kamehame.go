@@ -27,12 +27,12 @@ func Wave(concurrency int, tps int, buf io.Reader) {
 	var start = time.Now()
 	sema = make(chan struct{}, concurrency)
 	input := bufio.NewScanner(buf)
+	rep := regexp.MustCompile(`[\s\t\r]+`)
 
 	for i := 0; input.Scan(); i++ {
 		wg.Add(1)
 
 		line := input.Text()
-		rep := regexp.MustCompile(`[\s\t\r]+`)
 		col := rep.Split(line, -1)
 
 		var method = col[0]
