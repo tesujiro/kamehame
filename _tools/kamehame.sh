@@ -5,7 +5,7 @@ BIN=/home/vagrant/go/src/github.com/tesujiro/kamehame/cmd/kamehame
 INPUT_COUNT=3000
 #INPUT_COUNT=60
 #COMMAND="./fetchstdin"
-COMMAND="$BIN/kamehame -conc 1000 -tps 300"
+COMMAND="$BIN/kamehame -conc 1000 -tps 400"
 
 url_list()
 {

@@ -25,19 +25,26 @@ var (
 
 func Wave(concurrency int, tps int, buf io.Reader) {
 	var start = time.Now()
-	sema = make(chan struct{}, concurrency)
-	input := bufio.NewScanner(buf)
+	sema = make(chan struct{}, concurrency) // semaphore for limiting concurrency
 	rep := regexp.MustCompile(`[\s\t\r]+`)
 
+	input := bufio.NewScanner(buf)
 	for i := 0; input.Scan(); i++ {
 		wg.Add(1)
 
 		line := input.Text()
 		col := rep.Split(line, -1)
 
-		var method = col[0]
-		var url = col[1]
-		var tmpl = col[2]
+		if len(col) < 2 || len(col) > 3 {
+			fmt.Fprintf(os.Stderr, "File format error(%s)\n", line)
+			os.Exit(1)
+		}
+		var method, url string = col[0], col[1]
+		var tmpl string
+
+		if len(col) == 3 {
+			tmpl = col[2]
+		}
 
 		/* for i := 0; i < len(col); i++ {
 			fmt.Printf("col[%d]=%s\n", i, col[i])
@@ -82,14 +89,24 @@ func getTemplate(tmpl string) *template.Template {
 	return t
 }
 
-func getPostRequest(url, tmpl string) *http.Request {
-	// TODO: JSON以外も対応すること
-	jsonBuf := new(bytes.Buffer)
-	getTemplate(tmpl).Execute(jsonBuf, nil)
-	//getTemplate(tmpl).Execute(os.Stderr, nil)
-	req, _ := http.NewRequest("POST", url, jsonBuf)
-	req.Header.Set("X-Custom-Header", "myvalue")
-	req.Header.Set("Content-Type", "application/json")
+func getRequest(method, url, tmpl string) *http.Request {
+	var buf *bytes.Buffer
+	if tmpl != "" {
+		buf = new(bytes.Buffer)
+		getTemplate(tmpl).Execute(buf, nil)
+		//getTemplate(tmpl).Execute(os.Stderr, nil)
+	}
+	req, err := http.NewRequest(method, url, buf)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "http.NewRequest: %v\n", err)
+		os.Exit(1)
+	}
+	switch method {
+	case "POST":
+		//req.Header.Set("X-Custom-Header", "myvalue")
+		// TODO: JSON以外も対応すること
+		req.Header.Set("Content-Type", "application/json")
+	}
 	return req
 }
 
@@ -99,23 +116,14 @@ func fetch(method, url, tmpl string) {
 	defer wg.Done()
 	start := time.Now()
 
-	var req *http.Request
-	switch method {
-	case "POST":
-		req = getPostRequest(url, tmpl)
-
-	case "GET":
-		req, _ = http.NewRequest(method, url, nil)
-	}
+	req := getRequest(method, url, tmpl)
 
 	client := new(http.Client)
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "http.Client.Do(): %v\n", err)
 		os.Exit(1)
 	}
-
 	defer resp.Body.Close()
 
 	fmt.Printf("%d %s %6.6f\n", resp.StatusCode, url, time.Since(start).Seconds())
