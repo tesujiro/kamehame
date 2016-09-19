@@ -40,7 +40,7 @@ func Wave(concurrency int, tps int, buf io.Reader) {
 			os.Exit(1)
 		}
 		var method, url string = col[0], col[1]
-		var tmpl string
+		var tmpl string = ""
 
 		if len(col) == 3 {
 			tmpl = col[2]
@@ -74,14 +74,14 @@ var (
 )
 
 func getTemplate(tmpl string) *template.Template {
-	t, ok := templates[tmpl]
+	t, ok := templates[tmpl] // memoization
 	if !ok {
 		//fmt.Printf("NEW==%s==\n", tmpl)
 		//t = template.Must(template.New(path.Base(tmpl)).Funcs(funcMap).ParseFiles(tmpl))
 		var err error
 		t, err = template.New(path.Base(tmpl)).Funcs(funcMap).ParseFiles(tmpl)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "template.ParseFIles(%s): %v\n", tmpl, err)
+			fmt.Fprintf(os.Stderr, "template.ParseFiles(%s): %v\n", tmpl, err)
 			os.Exit(1)
 		}
 		templates[tmpl] = t
@@ -90,24 +90,28 @@ func getTemplate(tmpl string) *template.Template {
 }
 
 func getRequest(method, url, tmpl string) *http.Request {
-	var buf *bytes.Buffer
-	if tmpl != "" {
-		buf = new(bytes.Buffer)
-		getTemplate(tmpl).Execute(buf, nil)
-		//getTemplate(tmpl).Execute(os.Stderr, nil)
-	}
-	req, err := http.NewRequest(method, url, buf)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "http.NewRequest: %v\n", err)
-		os.Exit(1)
-	}
 	switch method {
+	case "GET":
+		req, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "http.NewRequest: %v\n", err)
+			os.Exit(1)
+		}
+		return req
 	case "POST":
+		buf := new(bytes.Buffer)
+		getTemplate(tmpl).Execute(buf, nil)
+		req, err := http.NewRequest(method, url, buf)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "http.NewRequest: %v\n", err)
+			os.Exit(1)
+		}
 		//req.Header.Set("X-Custom-Header", "myvalue")
 		// TODO: JSON以外も対応すること
 		req.Header.Set("Content-Type", "application/json")
+		return req
 	}
-	return req
+	return nil
 }
 
 func fetch(method, url, tmpl string) {

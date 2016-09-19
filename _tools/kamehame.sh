@@ -10,12 +10,12 @@ COMMAND="$BIN/kamehame -conc 1000 -tps 400"
 url_list()
 {
     cat <<EOF | awk 'sub(/#.*/,"")>=0&&NF>0'
-GET	http://127.0.0.1:8000/	NULL
-GET	http://127.0.0.1:8000/aaa	NULL
-GET	http://127.0.0.1:8000/bbb	NULL
+GET	http://127.0.0.1:8000/
+GET	http://127.0.0.1:8000/aaa
+GET	http://127.0.0.1:8000/bbb
 POST	http://127.0.0.1:8000/bbb	./tmpl/request1.tmpl
 #POST	http://127.0.0.1:8000/ccc	./tmpl/request2.tmpl
-#GET	https://www.google.co.jp/	NULL
+#GET	https://www.google.co.jp/
 EOF
 }
 
